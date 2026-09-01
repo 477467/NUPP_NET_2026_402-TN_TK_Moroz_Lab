@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CyberPolice.Common/CyberPolice.Common.csproj" Id="bd73fb00-6485-4638-ba95-399d4b551d8a" />
+  <Project Path="CyberPolice.Console/CyberPolice.Console.csproj" Id="2bb3ee5b-de3c-4d7f-b51d-783cd8fc0503" />
+</Solution>
