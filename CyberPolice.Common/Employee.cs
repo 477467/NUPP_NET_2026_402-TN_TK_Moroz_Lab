@@ -35,4 +35,20 @@ namespace CyberPolice.Common
             return TotalEmployees;
         }
     }
+    public static class EmployeeFactory
+    {
+        private static readonly Random _random = new Random();
+        private static readonly string[] Names = { "Іван Петренко", "Олена Ковальчук", "Андрій Мороз", "Марія Шевченко" };
+        private static readonly string[] Ranks = { "Лейтенант", "Капітан", "Майор", "Сержант" };
+
+        public static Employee CreateNew()
+        {
+            lock (_random)
+            {
+                string name = Names[_random.Next(Names.Length)];
+                string rank = Ranks[_random.Next(Ranks.Length)];
+                return new Employee(name, rank);
+            }
+        }
+    }
 }

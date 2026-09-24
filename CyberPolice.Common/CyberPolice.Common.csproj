@@ -47,10 +47,12 @@
     <Compile Include="Analyst.cs" />
     <Compile Include="CaseExtensions.cs" />
     <Compile Include="CrudService.cs" />
+    <Compile Include="CrudServiceAsync.cs" />
     <Compile Include="CyberCase.cs" />
     <Compile Include="DigitalEvidence.cs" />
     <Compile Include="Employee.cs" />
     <Compile Include="ICrudService.cs" />
+    <Compile Include="ICrudServiceAsync.cs" />
     <Compile Include="Investigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
