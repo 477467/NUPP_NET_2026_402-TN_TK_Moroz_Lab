@@ -16,4 +16,5 @@
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <Project Path="CyberPolice.REST/CyberPolice.REST.csproj" Id="58396e49-ec32-4fa6-b346-ce46cba27ddc" />
 </Solution>

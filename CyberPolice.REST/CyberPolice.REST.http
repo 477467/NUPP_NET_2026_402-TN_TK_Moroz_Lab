@@ -1,0 +1,6 @@
+@CyberPolice.REST_HostAddress = http://localhost:5014
+
+GET {{CyberPolice.REST_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
