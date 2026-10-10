@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
+using System.Data.Entity;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using CyberPolice.Common;
+using CyberPolice.Infrastructure;
+using CyberPolice.Infrastructure.Models;
 
 namespace CyberPolice.Console
 {
@@ -14,116 +13,80 @@ namespace CyberPolice.Console
         {
             System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            string filePath = "cases.json";
-            var service = new CrudServiceAsync<CyberCase>(filePath);
-
-            // === Паралельне створення 1000 об'єктів ===
-            var bag = new ConcurrentBag<CyberCase>();
-            var sw = Stopwatch.StartNew();
-
-            Parallel.For(0, 1000, i =>
+            using (var context = new CyberPoliceContext())
             {
-                var newCase = CyberCaseFactory.CreateNew();
-                bag.Add(newCase);
-                service.CreateAsync(newCase).Wait();
-            });
+                var investigatorRepo = new Repository<InvestigatorModel>(context);
+                var caseRepo = new Repository<CyberCaseModel>(context);
+                var evidenceRepo = new Repository<DigitalEvidenceModel>(context);
 
-            sw.Stop();
-            System.Console.WriteLine($"Створено {bag.Count} справ за {sw.ElapsedMilliseconds} мс");
+                var investigatorService = new CrudServiceDb<InvestigatorModel>(investigatorRepo);
+                var caseService = new CrudServiceDb<CyberCaseModel>(caseRepo);
+                var evidenceService = new CrudServiceDb<DigitalEvidenceModel>(evidenceRepo);
 
-            // === LINQ: Min/Max/Average ===
-            var allCases = await service.ReadAllAsync();
-            var casesList = allCases.ToList();
+                // Тестові дані додаються лише в порожню базу
+                if (!context.CyberCases.Any())
+                {
+                    // === Створення слідчого ===
+                    var investigator = new InvestigatorModel
+                    {
+                        FullName = "Мороз Євгеній",
+                        Rank = "Лейтенант",
+                        HireDate = DateTime.Now,
+                        Specialization = "Кіберзлочини",
+                        CasesSolved = 0
+                    };
+                    await investigatorService.CreateAsync(investigator);
 
-            var daysOpen = casesList.Select(c => (DateTime.Now - c.OpenedDate).TotalSeconds);
-            System.Console.WriteLine($"Мін. час відкриття (с): {daysOpen.Min():F4}");
-            System.Console.WriteLine($"Макс. час відкриття (с): {daysOpen.Max():F4}");
-            System.Console.WriteLine($"Середній час відкриття (с): {daysOpen.Average():F4}");
+                    // === Створення справи ===
+                    var cyberCase = new CyberCaseModel
+                    {
+                        Title = "Атака на банківський сервер",
+                        Status = "Відкрито",
+                        OpenedDate = DateTime.Now
+                    };
+                    await caseService.CreateAsync(cyberCase);
 
-            // === Пагінація ===
-            var page1 = await service.ReadAllAsync(0, 10);
-            System.Console.WriteLine("\nПерша сторінка (10 елементів):");
-            foreach (var c in page1)
-                System.Console.WriteLine($"- {c.Title}");
+                    // === Зв'язок багато-до-багатьох ===
+                    cyberCase.Investigators.Add(investigator);
+                    await caseService.UpdateAsync(cyberCase);
 
-            // === Збереження у файл ===
-            bool saved = await service.SaveAsync();
-            System.Console.WriteLine($"\nЗбережено у файл: {saved}, шлях: {filePath}");
+                    // === Доказ (1-до-багатьох) ===
+                    var evidence = new DigitalEvidenceModel
+                    {
+                        FileName = "server_log.txt",
+                        HashSha256 = Guid.NewGuid().ToString("N"),
+                        SizeBytes = 204800,
+                        CyberCaseId = cyberCase.Id
+                    };
+                    await evidenceService.CreateAsync(evidence);
+                }
 
-            // === Приклади примітивів синхронізації ===
-            DemoLock();
-            await DemoSemaphore();
-            DemoAutoResetEvent();
+                // === Вивід усіх справ ===
+                System.Console.WriteLine("Усі справи в базі даних:");
+                var allCases = await caseService.ReadAllAsync();
+                foreach (var c in allCases)
+                    System.Console.WriteLine($"- {c.Title} ({c.Status}), відкрито: {c.OpenedDate}");
+
+                // === Пагінація ===
+                System.Console.WriteLine("\nПерша сторінка слідчих (по 5):");
+                var page1 = await investigatorService.ReadAllAsync(0, 5);
+                foreach (var inv in page1)
+                    System.Console.WriteLine($"- {inv.FullName} ({inv.Specialization})");
+
+                // === Доступ через БД навпрямки для перевірки зв'язків ===
+                System.Console.WriteLine("\nДокази у першій справі:");
+                var caseWithEvidence = context.CyberCases
+                    .Include("Evidences")
+                    .FirstOrDefault();
+                if (caseWithEvidence != null)
+                    foreach (var ev in caseWithEvidence.Evidences)
+                        System.Console.WriteLine($"- {ev.FileName} ({ev.SizeBytes} байт)");
+
+                System.Console.WriteLine("\nБаза даних: (localdb)\\MSSQLLocalDB, CyberPoliceDb");
+            }
 
             System.Console.WriteLine("\nНатисніть будь-яку клавішу для виходу...");
             System.Console.ReadKey();
-        }
-
-        // === lock ===
-        private static readonly object _lockObj = new object();
-        private static int _counter = 0;
-
-        static void DemoLock()
-        {
-            System.Console.WriteLine("\n=== Демонстрація lock ===");
-            Parallel.For(0, 1000, i =>
-            {
-                lock (_lockObj)
-                {
-                    _counter++;
-                }
-            });
-            System.Console.WriteLine($"Лічильник після 1000 потоків (lock): {_counter}");
-        }
-
-        // === SemaphoreSlim ===
-        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(2); // максимум 2 потоки одночасно
-
-        static async Task DemoSemaphore()
-        {
-            System.Console.WriteLine("\n=== Демонстрація Semaphore (макс. 2 одночасно) ===");
-            var tasks = Enumerable.Range(1, 5).Select(async i =>
-            {
-                await _semaphore.WaitAsync();
-                try
-                {
-                    System.Console.WriteLine($"Потік {i} увійшов у критичну секцію");
-                    await Task.Delay(300);
-                    System.Console.WriteLine($"Потік {i} вийшов");
-                }
-                finally
-                {
-                    _semaphore.Release();
-                }
-            });
-            await Task.WhenAll(tasks);
-        }
-
-        // === AutoResetEvent ===
-        static void DemoAutoResetEvent()
-        {
-            System.Console.WriteLine("\n=== Демонстрація AutoResetEvent ===");
-            var autoEvent = new AutoResetEvent(false);
-
-            var producer = new Thread(() =>
-            {
-                System.Console.WriteLine("Виробник: готує дані...");
-                Thread.Sleep(500);
-                System.Console.WriteLine("Виробник: дані готові, сигналізує споживачу");
-                autoEvent.Set();
-            });
-
-            var consumer = new Thread(() =>
-            {
-                System.Console.WriteLine("Споживач: чекає на сигнал...");
-                autoEvent.WaitOne();
-                System.Console.WriteLine("Споживач: отримав сигнал, обробляє дані");
-            });
-
-            producer.Start();
-            consumer.Start();
-            producer.Join();
-            consumer.Join();
         }
     }
 }

@@ -1,4 +1,19 @@
 <Solution>
-  <Project Path="CyberPolice.Common/CyberPolice.Common.csproj" Id="bd73fb00-6485-4638-ba95-399d4b551d8a" />
-  <Project Path="CyberPolice.Console/CyberPolice.Console.csproj" Id="2bb3ee5b-de3c-4d7f-b51d-783cd8fc0503" />
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="CyberPolice.Common/CyberPolice.Common.csproj" Id="bd73fb00-6485-4638-ba95-399d4b551d8a">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="CyberPolice.Console/CyberPolice.Console.csproj" Id="2bb3ee5b-de3c-4d7f-b51d-783cd8fc0503">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="CyberPolice.Infrastructure/CyberPolice.Infrastructure.csproj" Id="aeb3d903-fde9-460f-aaa0-79068c9e9e6b">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
 </Solution>
