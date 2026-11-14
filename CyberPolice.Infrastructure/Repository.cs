@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Data.Entity;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace CyberPolice.Infrastructure
 {
@@ -23,18 +20,18 @@ namespace CyberPolice.Infrastructure
 
         public async Task<IEnumerable<T>> GetAllAsync()
         {
-            return await Task.FromResult(_dbSet.ToList());
+            return await _dbSet.ToListAsync();
         }
 
         public async Task AddAsync(T entity)
         {
-            _dbSet.Add(entity);
+            await _dbSet.AddAsync(entity);
             await _context.SaveChangesAsync();
         }
 
         public async Task Update(T entity)
         {
-            _context.Entry(entity).State = EntityState.Modified;
+            _dbSet.Update(entity);
             await _context.SaveChangesAsync();
         }
 

@@ -1,16 +1,12 @@
-﻿using System.Data.Entity;
-using CyberPolice.Infrastructure.Models;
+﻿using CyberPolice.Infrastructure.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace CyberPolice.Infrastructure
 {
-    public class CyberPoliceContext : DbContext
+    public class CyberPoliceContext : IdentityDbContext<ApplicationUser>
     {
-        static CyberPoliceContext()
-        {   
-            Database.SetInitializer(new CreateDatabaseIfNotExists<CyberPoliceContext>());
-        }
-
-        public CyberPoliceContext() : base("name=CyberPoliceContext")
+        public CyberPoliceContext(DbContextOptions<CyberPoliceContext> options) : base(options)
         {
         }
 
@@ -21,32 +17,36 @@ namespace CyberPolice.Infrastructure
         public DbSet<CyberCaseModel> CyberCases { get; set; }
         public DbSet<DigitalEvidenceModel> DigitalEvidences { get; set; }
 
-        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
+            // Table-per-Type наслідування
+            modelBuilder.Entity<EmployeeModel>().UseTptMappingStrategy();
             modelBuilder.Entity<EmployeeModel>().ToTable("Employees");
             modelBuilder.Entity<InvestigatorModel>().ToTable("Investigators");
             modelBuilder.Entity<AnalystModel>().ToTable("Analysts");
 
+            // 1-до-1: Employee <-> EmployeeCredentials
             modelBuilder.Entity<EmployeeModel>()
-                .HasOptional(e => e.Credentials)
-                .WithRequired(c => c.Employee);
+                .HasOne(e => e.Credentials)
+                .WithOne(c => c.Employee)
+                .HasForeignKey<EmployeeCredentialsModel>(c => c.EmployeeId);
 
+            // 1-до-багатьох: CyberCase -> DigitalEvidence
             modelBuilder.Entity<CyberCaseModel>()
                 .HasMany(c => c.Evidences)
-                .WithRequired(e => e.CyberCase)
+                .WithOne(e => e.CyberCase)
                 .HasForeignKey(e => e.CyberCaseId);
 
+            // багато-до-багатьох: Investigator <-> CyberCase
             modelBuilder.Entity<InvestigatorModel>()
                 .HasMany(i => i.Cases)
                 .WithMany(c => c.Investigators)
-                .Map(m =>
-                {
-                    m.ToTable("InvestigatorCases");
-                    m.MapLeftKey("InvestigatorId");
-                    m.MapRightKey("CyberCaseId");
-                });
-
-            base.OnModelCreating(modelBuilder);
+                .UsingEntity<Dictionary<string, object>>(
+                    "InvestigatorCases",
+                    j => j.HasOne<CyberCaseModel>().WithMany().HasForeignKey("CyberCaseId"),
+                    j => j.HasOne<InvestigatorModel>().WithMany().HasForeignKey("InvestigatorId"));
         }
     }
 }

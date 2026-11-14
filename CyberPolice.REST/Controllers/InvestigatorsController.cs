@@ -1,12 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using CyberPolice.Infrastructure;
+﻿using CyberPolice.Infrastructure;
 using CyberPolice.Infrastructure.Models;
 using CyberPolice.REST.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CyberPolice.REST.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Admin,Investigator,Analyst")]
     public class InvestigatorsController : ControllerBase
     {
         private readonly ICrudServiceAsyncDb<InvestigatorModel> _service;
@@ -16,6 +18,7 @@ namespace CyberPolice.REST.Controllers
             _service = service;
         }
 
+        // Перегляд - усі три ролі (обмеження на рівні класу)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<InvestigatorApiModel>>> GetAll()
         {
@@ -47,7 +50,9 @@ namespace CyberPolice.REST.Controllers
             });
         }
 
+        // Створення, оновлення, видалення - лише адміністратор
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Create([FromBody] InvestigatorCreateModel model)
         {
             var newInvestigator = new InvestigatorModel
@@ -59,10 +64,18 @@ namespace CyberPolice.REST.Controllers
                 CasesSolved = 0
             };
             await _service.CreateAsync(newInvestigator);
-            return CreatedAtAction(nameof(GetById), new { id = newInvestigator.Id }, newInvestigator);
+            return CreatedAtAction(nameof(GetById), new { id = newInvestigator.Id }, new InvestigatorApiModel
+            {
+                Id = newInvestigator.Id,
+                FullName = newInvestigator.FullName,
+                Rank = newInvestigator.Rank,
+                Specialization = newInvestigator.Specialization,
+                CasesSolved = newInvestigator.CasesSolved
+            });
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Update(int id, [FromBody] InvestigatorCreateModel model)
         {
             var existing = await _service.ReadAsync(id);
@@ -76,6 +89,7 @@ namespace CyberPolice.REST.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Delete(int id)
         {
             var existing = await _service.ReadAsync(id);
